@@ -27,6 +27,6 @@ class RetinaNetHead_SharedTrainingBN(RetinaNetHead):
         return logits, bbox_reg
 
 
-from .retinanet_SyncBNhead import model, dataloader, lr_multiplier, optimizer, train
+from .retinanet_SyncBNhead import model
 
 model.head._target_ = RetinaNetHead_SharedTrainingBN

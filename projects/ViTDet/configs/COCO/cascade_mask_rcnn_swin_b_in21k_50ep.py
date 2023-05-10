@@ -5,7 +5,6 @@ from detectron2.config import LazyCall as L
 from detectron2.solver import WarmupParamScheduler
 from detectron2.modeling import SwinTransformer
 
-from ..common.coco_loader_lsj import dataloader
 from .cascade_mask_rcnn_mvitv2_b_in21k_100ep import model
 
 model.backbone.bottom_up = L(SwinTransformer)(

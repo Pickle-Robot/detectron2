@@ -1,8 +1,6 @@
 from functools import partial
 
 from .cascade_mask_rcnn_vitdet_b_100ep import (
-    dataloader,
-    lr_multiplier,
     model,
     train,
     optimizer,

@@ -69,7 +69,7 @@ def wrap_shuffle(module_type, method):
     )
 
 
-from .mask_rcnn_BNhead import model, dataloader, lr_multiplier, optimizer, train
+from .mask_rcnn_BNhead import model
 
 
 model.roi_heads.box_head._target_ = wrap_shuffle(FastRCNNConvFCHead, "forward")

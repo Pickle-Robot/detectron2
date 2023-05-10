@@ -724,7 +724,7 @@ def rename_op_input(
 
     if from_producer:
         producer_map = get_producer_map(predict_net_ssa)
-        if not (old_name, version) in producer_map:
+        if (old_name, version) not in producer_map:
             raise NotImplementedError(
                 "Can't find producer, the input {} is probably from"
                 " init_net, this is not supported yet.".format(old_name)

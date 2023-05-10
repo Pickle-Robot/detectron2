@@ -1,9 +1,6 @@
 from .cascade_mask_rcnn_swin_b_in21k_50ep import (
-    dataloader,
-    lr_multiplier,
     model,
     train,
-    optimizer,
 )
 
 model.backbone.bottom_up.embed_dim = 192

@@ -11,10 +11,7 @@ from detectron2.modeling.roi_heads import (
 
 from .mask_rcnn_vitdet_l_100ep import (
     dataloader,
-    lr_multiplier,
     model,
-    optimizer,
-    train,
 )
 
 # arguments that don't exist for Cascade R-CNN

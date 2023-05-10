@@ -2,12 +2,9 @@
 
 import warnings
 
-from .flatten import TracingAdapter
-from .torchscript import dump_torchscript_IR, scripting_with_instances
 
 try:
-    from caffe2.proto import caffe2_pb2 as _tmp
-    from caffe2.python import core
+    pass
 
     # caffe2 is optional
 except ImportError:

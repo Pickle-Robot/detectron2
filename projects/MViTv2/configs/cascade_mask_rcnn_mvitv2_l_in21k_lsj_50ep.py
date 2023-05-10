@@ -4,7 +4,6 @@ from detectron2.config import LazyCall as L
 from detectron2.solver import WarmupParamScheduler
 
 from .cascade_mask_rcnn_mvitv2_b_3x import model, optimizer, train
-from .common.coco_loader_lsj import dataloader
 
 
 model.backbone.bottom_up.embed_dim = 144

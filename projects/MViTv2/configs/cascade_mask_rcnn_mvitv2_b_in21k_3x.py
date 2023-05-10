@@ -1,8 +1,4 @@
 from .cascade_mask_rcnn_mvitv2_b_3x import (
-    model,
-    dataloader,
-    optimizer,
-    lr_multiplier,
     train,
 )
 

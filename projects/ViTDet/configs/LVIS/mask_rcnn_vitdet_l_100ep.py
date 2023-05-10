@@ -3,8 +3,6 @@ from functools import partial
 from detectron2.modeling.backbone.vit import get_vit_lr_decay_rate
 
 from .mask_rcnn_vitdet_b_100ep import (
-    dataloader,
-    lr_multiplier,
     model,
     train,
     optimizer,

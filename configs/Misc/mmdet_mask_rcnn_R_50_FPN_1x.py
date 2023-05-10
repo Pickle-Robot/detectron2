@@ -1,8 +1,6 @@
 # An example config to train a mmdetection model using detectron2.
 
 from ..common.data.coco import dataloader
-from ..common.coco_schedule import lr_multiplier_1x as lr_multiplier
-from ..common.optim import SGD as optimizer
 from ..common.train import train
 from ..common.data.constants import constants
 

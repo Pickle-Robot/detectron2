@@ -9,12 +9,7 @@ from detectron2.modeling.roi_heads import (
 )
 
 from .mask_rcnn_vitdet_b_100ep import (
-    dataloader,
-    lr_multiplier,
     model,
-    train,
-    optimizer,
-    get_vit_lr_decay_rate,
 )
 
 # arguments that don't exist for Cascade R-CNN

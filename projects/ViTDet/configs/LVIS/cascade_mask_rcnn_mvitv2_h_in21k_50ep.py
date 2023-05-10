@@ -1,5 +1,4 @@
 from .cascade_mask_rcnn_mvitv2_b_in21k_100ep import (
-    dataloader,
     lr_multiplier,
     model,
     train,

@@ -9,7 +9,7 @@ from detectron2.modeling.roi_heads import (
 )
 from detectron2.layers.batch_norm import NaiveSyncBatchNorm
 
-from .mask_rcnn_mvitv2_t_3x import model, dataloader, optimizer, lr_multiplier, train
+from .mask_rcnn_mvitv2_t_3x import model
 
 
 # arguments that don't exist for Cascade R-CNN

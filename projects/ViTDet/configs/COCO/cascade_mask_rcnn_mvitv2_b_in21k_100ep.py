@@ -15,7 +15,6 @@ from detectron2.modeling.roi_heads import (
     CascadeROIHeads,
 )
 
-from ..common.coco_loader_lsj import dataloader
 
 model = model_zoo.get_config("common/models/mask_rcnn_fpn.py").model
 constants = model_zoo.get_config("common/data/constants.py").constants

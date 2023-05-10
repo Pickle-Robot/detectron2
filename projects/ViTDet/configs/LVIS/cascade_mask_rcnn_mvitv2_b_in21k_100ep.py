@@ -1,5 +1,3 @@
-from functools import partial
-import torch.nn as nn
 
 from detectron2.config import LazyCall as L
 from detectron2.data.detection_utils import get_fed_loss_cls_weights

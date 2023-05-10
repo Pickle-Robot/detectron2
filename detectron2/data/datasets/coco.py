@@ -358,9 +358,8 @@ def convert_to_coco_dict(dataset_name):
         reverse_id_mapping = {
             v: k for k, v in metadata.thing_dataset_id_to_contiguous_id.items()
         }
-        reverse_id_mapper = lambda contiguous_id: reverse_id_mapping[
-            contiguous_id
-        ]  # noqa
+        def reverse_id_mapper(contiguous_id):
+            return reverse_id_mapping[contiguous_id]  # noqa
     else:
         reverse_id_mapper = lambda contiguous_id: contiguous_id  # noqa
 

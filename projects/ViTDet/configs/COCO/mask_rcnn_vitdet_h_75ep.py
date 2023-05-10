@@ -1,7 +1,6 @@
 from functools import partial
 
 from .mask_rcnn_vitdet_b_100ep import (
-    dataloader,
     lr_multiplier,
     model,
     train,
