@@ -275,6 +275,11 @@ skipIfOnCPUCI = unittest.skipIf(
 )
 
 
+# SKIP IF PYTORCH VERSION > 1.10
+skipIfOnPytorch1_10 = unittest.skipIf(
+    min_torch_version("1.10"),
+    "The test is not supported on PyTorch 1.10+",
+)
 def skipIfUnsupportedMinOpsetVersion(min_opset_version, current_opset_version=None):
     """
     Skips tests for ONNX Opset versions older than min_opset_version.
