@@ -118,7 +118,9 @@ def setup_logger(
 @functools.lru_cache(maxsize=None)
 def _cached_log_stream(filename):
     # use 1K buffer if writing to cloud storage
-    io = PathManager.open(filename, "a", buffering=_get_log_stream_buffer_size(filename))
+    io = PathManager.open(
+        filename, "a", buffering=_get_log_stream_buffer_size(filename)
+    )
     atexit.register(io.close)
     return io
 

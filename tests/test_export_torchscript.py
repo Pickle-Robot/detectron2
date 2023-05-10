@@ -88,7 +88,9 @@ class TestScripting(unittest.TestCase):
         with torch.no_grad():
             instance = model(inputs)[0]["instances"]
             scripted_instance = convert_scripted_instances(script_model(inputs)[0])
-            scripted_instance = detector_postprocess(scripted_instance, img.shape[1], img.shape[2])
+            scripted_instance = detector_postprocess(
+                scripted_instance, img.shape[1], img.shape[2]
+            )
         assert_instances_allclose(instance, scripted_instance)
         # Note that the model currently cannot be saved and loaded into a new process:
         # https://github.com/pytorch/pytorch/issues/46944
@@ -101,14 +103,20 @@ class TestTracing(unittest.TestCase):
             inputs = [{"image": image}]
             return model.inference(inputs, do_postprocess=False)[0]
 
-        self._test_model("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml", inference_func)
+        self._test_model(
+            "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml", inference_func
+        )
 
     def testMaskRCNNFPN_with_postproc(self):
         def inference_func(model, image):
-            inputs = [{"image": image, "height": image.shape[1], "width": image.shape[2]}]
+            inputs = [
+                {"image": image, "height": image.shape[1], "width": image.shape[2]}
+            ]
             return model.inference(inputs, do_postprocess=True)[0]["instances"]
 
-        self._test_model("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml", inference_func)
+        self._test_model(
+            "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml", inference_func
+        )
 
     @skipIfOnCPUCI
     def testMaskRCNNC4(self):
@@ -116,7 +124,9 @@ class TestTracing(unittest.TestCase):
             inputs = [{"image": image}]
             return model.inference(inputs, do_postprocess=False)[0]
 
-        self._test_model("COCO-InstanceSegmentation/mask_rcnn_R_50_C4_3x.yaml", inference_func)
+        self._test_model(
+            "COCO-InstanceSegmentation/mask_rcnn_R_50_C4_3x.yaml", inference_func
+        )
 
     @skipIfOnCPUCI
     def testCascadeRCNN(self):
@@ -127,7 +137,9 @@ class TestTracing(unittest.TestCase):
         self._test_model("Misc/cascade_mask_rcnn_R_50_FPN_3x.yaml", inference_func)
 
     # bug fixed by https://github.com/pytorch/pytorch/pull/67734
-    @unittest.skipIf(TORCH_VERSION == (1, 10) and os.environ.get("CI"), "1.10 has bugs.")
+    @unittest.skipIf(
+        TORCH_VERSION == (1, 10) and os.environ.get("CI"), "1.10 has bugs."
+    )
     def testRetinaNet(self):
         def inference_func(model, image):
             return model.forward([{"image": image}])[0]["instances"]
@@ -136,7 +148,9 @@ class TestTracing(unittest.TestCase):
 
     def _check_torchscript_no_hardcoded_device(self, jitfile, extract_dir, device):
         zipfile.ZipFile(jitfile).extractall(extract_dir)
-        dir_path = os.path.join(extract_dir, os.path.splitext(os.path.basename(jitfile))[0])
+        dir_path = os.path.join(
+            extract_dir, os.path.splitext(os.path.basename(jitfile))[0]
+        )
         error_files = []
         for f in glob.glob(f"{dir_path}/code/**/*.py", recursive=True):
             content = open(f).read()
@@ -187,13 +201,19 @@ class TestTracing(unittest.TestCase):
                 self._check_torchscript_no_hardcoded_device(jitfile, d, "cuda")
 
         for device in testing_devices:
-            print(f"Testing casting to {device} for inference (traced on {model.device}) ...")
+            print(
+                f"Testing casting to {device} for inference (traced on {model.device}) ..."
+            )
             with torch.no_grad():
                 outputs = inference_func(copy.deepcopy(model).to(device), *inputs)
-                traced_outputs = wrapper.outputs_schema(traced_model.to(device)(*inputs))
+                traced_outputs = wrapper.outputs_schema(
+                    traced_model.to(device)(*inputs)
+                )
             if batch > 1:
                 for output, traced_output in zip(outputs, traced_outputs):
-                    assert_instances_allclose(output, traced_output, size_as_tensor=True)
+                    assert_instances_allclose(
+                        output, traced_output, size_as_tensor=True
+                    )
             else:
                 assert_instances_allclose(outputs, traced_outputs, size_as_tensor=True)
 
@@ -204,7 +224,9 @@ class TestTracing(unittest.TestCase):
             return model.inference(inputs, do_postprocess=False)
 
         self._test_model(
-            "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml", inference_func, batch=2
+            "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml",
+            inference_func,
+            batch=2,
         )
 
     def testKeypointHead(self):
@@ -212,7 +234,9 @@ class TestTracing(unittest.TestCase):
             def __init__(self):
                 super().__init__()
                 self.model = KRCNNConvDeconvUpsampleHead(
-                    ShapeSpec(channels=4, height=14, width=14), num_keypoints=17, conv_dims=(4,)
+                    ShapeSpec(channels=4, height=14, width=14),
+                    num_keypoints=17,
+                    conv_dims=(4,),
                 )
 
             def forward(self, x, predbox1, predbox2):
@@ -263,7 +287,12 @@ class TestTorchscriptUtils(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="detectron2_test") as d:
             dump_torchscript_IR(ts_model, d)
             # check that the files are created
-            for name in ["model_ts_code", "model_ts_IR", "model_ts_IR_inlined", "model"]:
+            for name in [
+                "model_ts_code",
+                "model_ts_IR",
+                "model_ts_IR_inlined",
+                "model",
+            ]:
                 fname = os.path.join(d, name + ".txt")
                 self.assertTrue(os.stat(fname).st_size > 0, fname)
 
@@ -305,12 +334,16 @@ class TestTorchscriptUtils(unittest.TestCase):
 
     def test_flatten_instances_boxes(self):
         inst = Instances(
-            torch.tensor([5, 8]), pred_masks=torch.tensor([3]), pred_boxes=Boxes(torch.ones((1, 4)))
+            torch.tensor([5, 8]),
+            pred_masks=torch.tensor([3]),
+            pred_boxes=Boxes(torch.ones((1, 4))),
         )
         obj = [3, ([5, 6], inst)]
         res, schema = flatten_to_tuple(obj)
         self.assertEqual(res[:3], (3, 5, 6))
-        for r, expected in zip(res[3:], (inst.pred_boxes.tensor, inst.pred_masks, inst.image_size)):
+        for r, expected in zip(
+            res[3:], (inst.pred_boxes.tensor, inst.pred_masks, inst.image_size)
+        ):
             self.assertIs(r, expected)
         new_obj = schema(res)
         assert_instances_allclose(new_obj[1][1], inst, rtol=0.0, size_as_tensor=True)

@@ -22,7 +22,13 @@ from detectron2.data import (
     build_detection_train_loader,
 )
 from detectron2.data.benchmark import DataLoaderBenchmark
-from detectron2.engine import AMPTrainer, SimpleTrainer, default_argument_parser, hooks, launch
+from detectron2.engine import (
+    AMPTrainer,
+    SimpleTrainer,
+    default_argument_parser,
+    hooks,
+    launch,
+)
 from detectron2.modeling import build_model
 from detectron2.solver import build_optimizer
 from detectron2.utils import comm
@@ -117,13 +123,17 @@ def benchmark_train(args):
             yield from data
 
     max_iter = 400
-    trainer = (AMPTrainer if cfg.SOLVER.AMP.ENABLED else SimpleTrainer)(model, f(), optimizer)
+    trainer = (AMPTrainer if cfg.SOLVER.AMP.ENABLED else SimpleTrainer)(
+        model, f(), optimizer
+    )
     trainer.register_hooks(
         [
             hooks.IterationTimer(),
             hooks.PeriodicWriter([CommonMetricPrinter(max_iter)]),
             hooks.TorchProfiler(
-                lambda trainer: trainer.iter == max_iter - 1, cfg.OUTPUT_DIR, save_tensorboard=True
+                lambda trainer: trainer.iter == max_iter - 1,
+                cfg.OUTPUT_DIR,
+                save_tensorboard=True,
             ),
         ]
     )
@@ -172,7 +182,9 @@ def benchmark_eval(args):
 
 if __name__ == "__main__":
     parser = default_argument_parser()
-    parser.add_argument("--task", choices=["train", "eval", "data", "data_advanced"], required=True)
+    parser.add_argument(
+        "--task", choices=["train", "eval", "data", "data_advanced"], required=True
+    )
     args = parser.parse_args()
     assert not args.eval_only
 
@@ -194,4 +206,11 @@ if __name__ == "__main__":
         f = benchmark_eval
         # only benchmark single-GPU inference.
         assert args.num_gpus == 1 and args.num_machines == 1
-    launch(f, args.num_gpus, args.num_machines, args.machine_rank, args.dist_url, args=(args,))
+    launch(
+        f,
+        args.num_gpus,
+        args.num_machines,
+        args.machine_rank,
+        args.dist_url,
+        args=(args,),
+    )

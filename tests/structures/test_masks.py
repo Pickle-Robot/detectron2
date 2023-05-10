@@ -25,7 +25,9 @@ class TestBitMask(unittest.TestCase):
             ]
         )
         bitmask = BitMasks(masks)
-        box_true = torch.tensor([[1, 0, 4, 4], [1, 1, 3, 4], [0, 0, 0, 0]], dtype=torch.float32)
+        box_true = torch.tensor(
+            [[1, 0, 4, 4], [1, 1, 3, 4], [0, 0, 0, 0]], dtype=torch.float32
+        )
         box = bitmask.get_bounding_boxes()
         self.assertTrue(torch.all(box.tensor == box_true).item())
 
@@ -46,7 +48,9 @@ class TestBitMask(unittest.TestCase):
         masks = BitMasks(torch.ones(3, 10, 10))
         self.assertEqual(masks[1].tensor.shape, (1, 10, 10))
         self.assertEqual(masks[1:3].tensor.shape, (2, 10, 10))
-        self.assertEqual(masks[torch.tensor([True, False, False])].tensor.shape, (1, 10, 10))
+        self.assertEqual(
+            masks[torch.tensor([True, False, False])].tensor.shape, (1, 10, 10)
+        )
 
 
 if __name__ == "__main__":
