@@ -2,27 +2,20 @@
 import colorsys
 import logging
 import math
+import numpy as np
 from enum import Enum, unique
-
 import cv2
 import matplotlib as mpl
 import matplotlib.colors as mplc
 import matplotlib.figure as mplfigure
-import numpy as np
 import pycocotools.mask as mask_util
 import torch
-from detectron2.data import MetadataCatalog
-from detectron2.structures import (
-    BitMasks,
-    Boxes,
-    BoxMode,
-    Keypoints,
-    PolygonMasks,
-    RotatedBoxes,
-)
-from detectron2.utils.file_io import PathManager
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from PIL import Image
+
+from detectron2.data import MetadataCatalog
+from detectron2.structures import BitMasks, Boxes, BoxMode, Keypoints, PolygonMasks, RotatedBoxes
+from detectron2.utils.file_io import PathManager
 
 from .colormap import random_color
 
@@ -214,7 +207,7 @@ class _PanopticPrediction:
         assert (
             len(empty_ids) == 1
         ), ">1 ids corresponds to no labels. This is currently not supported"
-        return (self._seg != empty_ids[0]).numpy().astype(np.bool)
+        return (self._seg != empty_ids[0]).numpy().astype(bool)
 
     def semantic_masks(self):
         for sid in self._seg_ids:
@@ -222,14 +215,14 @@ class _PanopticPrediction:
             if sinfo is None or sinfo["isthing"]:
                 # Some pixels (e.g. id 0 in PanopticFPN) have no instance or semantic predictions.
                 continue
-            yield (self._seg == sid).numpy().astype(np.bool), sinfo
+            yield (self._seg == sid).numpy().astype(bool), sinfo
 
     def instance_masks(self):
         for sid in self._seg_ids:
             sinfo = self._sinfo.get(sid)
             if sinfo is None or not sinfo["isthing"]:
                 continue
-            mask = (self._seg == sid).numpy().astype(np.bool)
+            mask = (self._seg == sid).numpy().astype(bool)
             if mask.sum() > 0:
                 yield mask, sinfo
 
@@ -544,7 +537,7 @@ class Visualizer:
 
     def draw_dataset_dict(self, dic):
         """
-        Draw annotations/segmentaions in Detectron2 Dataset format.
+        Draw annotations/segmentations in Detectron2 Dataset format.
 
         Args:
             dic (dict): annotation/segmentation data of one image, in Detectron2 Dataset format.
@@ -1207,7 +1200,7 @@ class Visualizer:
         modified_lightness = 0.0 if modified_lightness < 0.0 else modified_lightness
         modified_lightness = 1.0 if modified_lightness > 1.0 else modified_lightness
         modified_color = colorsys.hls_to_rgb(polygon_color[0], modified_lightness, polygon_color[2])
-        return modified_color
+        return tuple(np.clip(modified_color, 0.0, 1.0))
 
     def _convert_boxes(self, boxes):
         """
