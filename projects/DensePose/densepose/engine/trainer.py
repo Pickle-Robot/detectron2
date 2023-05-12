@@ -210,7 +210,6 @@ class Trainer(DefaultTrainer):
             nesterov=cfg.SOLVER.NESTEROV,
             weight_decay=cfg.SOLVER.WEIGHT_DECAY,
         )
-        # pyre-fixme[6]: For 2nd param expected `Type[Optimizer]` but got `SGD`.
         return maybe_add_gradient_clipping(cfg, optimizer)
 
     @classmethod

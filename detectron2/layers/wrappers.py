@@ -8,12 +8,9 @@ These can be removed once https://github.com/pytorch/pytorch/issues/12013
 is implemented
 """
 
-import warnings
 from typing import List, Optional
 import torch
 from torch.nn import functional as F
-
-from detectron2.utils.env import TORCH_VERSION
 
 
 def shapes_to_tensor(x: List[int], device: Optional[torch.device] = None) -> torch.Tensor:
@@ -38,15 +35,6 @@ def shapes_to_tensor(x: List[int], device: Optional[torch.device] = None) -> tor
     return torch.as_tensor(x, device=device)
 
 
-def check_if_dynamo_compiling():
-    if TORCH_VERSION >= (1, 14):
-        from torch._dynamo import is_compiling
-
-        return is_compiling()
-    else:
-        return False
-
-
 def cat(tensors: List[torch.Tensor], dim: int = 0):
     """
     Efficient version of torch.cat that avoids a copy if there is only a single element in a list
@@ -57,19 +45,14 @@ def cat(tensors: List[torch.Tensor], dim: int = 0):
     return torch.cat(tensors, dim)
 
 
-def empty_input_loss_func_wrapper(loss_func):
-    def wrapped_loss_func(input, target, *, reduction="mean", **kwargs):
-        """
-        Same as `loss_func`, but returns 0 (instead of nan) for empty inputs.
-        """
-        if target.numel() == 0 and reduction == "mean":
-            return input.sum() * 0.0  # connect the gradient
-        return loss_func(input, target, reduction=reduction, **kwargs)
-
-    return wrapped_loss_func
-
-
-cross_entropy = empty_input_loss_func_wrapper(F.cross_entropy)
+def cross_entropy(input, target, *, reduction="mean", **kwargs):
+    """
+    Same as `torch.nn.functional.cross_entropy`, but returns 0 (instead of nan)
+    for empty inputs.
+    """
+    if target.numel() == 0 and reduction == "mean":
+        return input.sum() * 0.0  # connect the gradient
+    return F.cross_entropy(input, target, reduction=reduction, **kwargs)
 
 
 class _NewEmptyTensorOp(torch.autograd.Function):
@@ -114,15 +97,11 @@ class Conv2d(torch.nn.Conv2d):
         # 2. features needed by exporting module to torchscript are added in PyTorch 1.6 or
         # later version, `Conv2d` in these PyTorch versions has already supported empty inputs.
         if not torch.jit.is_scripting():
-            # Dynamo doesn't support context managers yet
-            is_dynamo_compiling = check_if_dynamo_compiling()
-            if not is_dynamo_compiling:
-                with warnings.catch_warnings(record=True):
-                    if x.numel() == 0 and self.training:
-                        # https://github.com/pytorch/pytorch/issues/12013
-                        assert not isinstance(
-                            self.norm, torch.nn.SyncBatchNorm
-                        ), "SyncBatchNorm does not support empty inputs!"
+            if x.numel() == 0 and self.training:
+                # https://github.com/pytorch/pytorch/issues/12013
+                assert not isinstance(
+                    self.norm, torch.nn.SyncBatchNorm
+                ), "SyncBatchNorm does not support empty inputs!"
 
         x = F.conv2d(
             x, self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups
@@ -151,12 +130,3 @@ def nonzero_tuple(x):
         return x.nonzero().unbind(1)
     else:
         return x.nonzero(as_tuple=True)
-
-
-@torch.jit.script_if_tracing
-def move_device_like(src: torch.Tensor, dst: torch.Tensor) -> torch.Tensor:
-    """
-    Tracing friendly way to cast tensor to another tensor's device. Device will be treated
-    as constant during tracing, scripting the casting process as whole can workaround this issue.
-    """
-    return src.to(dst.device)

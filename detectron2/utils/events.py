@@ -6,7 +6,6 @@ import os
 import time
 from collections import defaultdict
 from contextlib import contextmanager
-from functools import cached_property
 from typing import Optional
 import torch
 from fvcore.common.history_buffer import HistoryBuffer
@@ -15,7 +14,6 @@ from detectron2.utils.file_io import PathManager
 
 __all__ = [
     "get_event_storage",
-    "has_event_storage",
     "JSONWriter",
     "TensorboardXWriter",
     "CommonMetricPrinter",
@@ -35,14 +33,6 @@ def get_event_storage():
         _CURRENT_STORAGE_STACK
     ), "get_event_storage() has to be called inside a 'with EventStorage(...)' context!"
     return _CURRENT_STORAGE_STACK[-1]
-
-
-def has_event_storage():
-    """
-    Returns:
-        Check if there are EventStorage() context existed.
-    """
-    return len(_CURRENT_STORAGE_STACK) > 0
 
 
 class EventWriter:
@@ -152,14 +142,10 @@ class TensorboardXWriter(EventWriter):
             kwargs: other arguments passed to `torch.utils.tensorboard.SummaryWriter(...)`
         """
         self._window_size = window_size
-        self._writer_args = {"log_dir": log_dir, **kwargs}
-        self._last_write = -1
-
-    @cached_property
-    def _writer(self):
         from torch.utils.tensorboard import SummaryWriter
 
-        return SummaryWriter(**self._writer_args)
+        self._writer = SummaryWriter(log_dir, **kwargs)
+        self._last_write = -1
 
     def write(self):
         storage = get_event_storage()
@@ -188,7 +174,7 @@ class TensorboardXWriter(EventWriter):
             storage.clear_histograms()
 
     def close(self):
-        if "_writer" in self.__dict__:
+        if hasattr(self, "_writer"):  # doesn't exist when the code fails at import
             self._writer.close()
 
 
@@ -209,7 +195,7 @@ class CommonMetricPrinter(EventWriter):
                 Used to compute ETA. If not given, ETA will not be printed.
             window_size (int): the losses will be median-smoothed by this window size
         """
-        self.logger = logging.getLogger("detectron2.utils.events")
+        self.logger = logging.getLogger(__name__)
         self._max_iter = max_iter
         self._window_size = window_size
         self._last_write = None  # (step, time) of last call to write(). Used to compute ETA
@@ -244,21 +230,15 @@ class CommonMetricPrinter(EventWriter):
             return
 
         try:
-            avg_data_time = storage.history("data_time").avg(
-                storage.count_samples("data_time", self._window_size)
-            )
-            last_data_time = storage.history("data_time").latest()
+            data_time = storage.history("data_time").avg(20)
         except KeyError:
             # they may not exist in the first few iterations (due to warmup)
             # or when SimpleTrainer is not used
-            avg_data_time = None
-            last_data_time = None
+            data_time = None
         try:
-            avg_iter_time = storage.history("time").global_avg()
-            last_iter_time = storage.history("time").latest()
+            iter_time = storage.history("time").global_avg()
         except KeyError:
-            avg_iter_time = None
-            last_iter_time = None
+            iter_time = None
         try:
             lr = "{:.5g}".format(storage.history("lr").latest())
         except KeyError:
@@ -273,41 +253,18 @@ class CommonMetricPrinter(EventWriter):
 
         # NOTE: max_mem is parsed by grep in "dev/parse_results.sh"
         self.logger.info(
-            str.format(
-                " {eta}iter: {iter}  {losses}  {non_losses}  {avg_time}{last_time}"
-                + "{avg_data_time}{last_data_time} lr: {lr}  {memory}",
+            " {eta}iter: {iter}  {losses}  {time}{data_time}lr: {lr}  {memory}".format(
                 eta=f"eta: {eta_string}  " if eta_string else "",
                 iter=iteration,
                 losses="  ".join(
                     [
-                        "{}: {:.4g}".format(
-                            k, v.median(storage.count_samples(k, self._window_size))
-                        )
+                        "{}: {:.4g}".format(k, v.median(self._window_size))
                         for k, v in storage.histories().items()
                         if "loss" in k
                     ]
                 ),
-                non_losses="  ".join(
-                    [
-                        "{}: {:.4g}".format(
-                            k, v.median(storage.count_samples(k, self._window_size))
-                        )
-                        for k, v in storage.histories().items()
-                        if "[metric]" in k
-                    ]
-                ),
-                avg_time="time: {:.4f}  ".format(avg_iter_time)
-                if avg_iter_time is not None
-                else "",
-                last_time="last_time: {:.4f}  ".format(last_iter_time)
-                if last_iter_time is not None
-                else "",
-                avg_data_time="data_time: {:.4f}  ".format(avg_data_time)
-                if avg_data_time is not None
-                else "",
-                last_data_time="last_data_time: {:.4f}  ".format(last_data_time)
-                if last_data_time is not None
-                else "",
+                time="time: {:.4f}  ".format(iter_time) if iter_time is not None else "",
+                data_time="data_time: {:.4f}  ".format(data_time) if data_time is not None else "",
                 lr=lr,
                 memory="max_mem: {:.0f}M".format(max_mem_mb) if max_mem_mb is not None else "",
             )
@@ -349,7 +306,7 @@ class EventStorage:
         """
         self._vis_data.append((img_name, img_tensor, self._iter))
 
-    def put_scalar(self, name, value, smoothing_hint=True, cur_iter=None):
+    def put_scalar(self, name, value, smoothing_hint=True):
         """
         Add a scalar `value` to the `HistoryBuffer` associated with `name`.
 
@@ -361,17 +318,14 @@ class EventStorage:
 
                 It defaults to True because most scalars we save need to be smoothed to
                 provide any useful signal.
-            cur_iter (int): an iteration number to set explicitly instead of current iteration
         """
         name = self._current_prefix + name
-        cur_iter = self._iter if cur_iter is None else cur_iter
         history = self._history[name]
         value = float(value)
-        history.update(value, cur_iter)
-        self._latest_scalars[name] = (value, cur_iter)
+        history.update(value, self._iter)
+        self._latest_scalars[name] = (value, self._iter)
 
         existing_hint = self._smoothing_hints.get(name)
-
         if existing_hint is not None:
             assert (
                 existing_hint == smoothing_hint
@@ -379,7 +333,7 @@ class EventStorage:
         else:
             self._smoothing_hints[name] = smoothing_hint
 
-    def put_scalars(self, *, smoothing_hint=True, cur_iter=None, **kwargs):
+    def put_scalars(self, *, smoothing_hint=True, **kwargs):
         """
         Put multiple scalars from keyword arguments.
 
@@ -388,7 +342,7 @@ class EventStorage:
             storage.put_scalars(loss=my_loss, accuracy=my_accuracy, smoothing_hint=True)
         """
         for k, v in kwargs.items():
-            self.put_scalar(k, v, smoothing_hint=smoothing_hint, cur_iter=cur_iter)
+            self.put_scalar(k, v, smoothing_hint=smoothing_hint)
 
     def put_histogram(self, hist_name, hist_tensor, bins=1000):
         """
@@ -413,7 +367,7 @@ class EventStorage:
             max=ht_max,
             num=len(hist_tensor),
             sum=float(hist_tensor.sum()),
-            sum_squares=float(torch.sum(hist_tensor**2)),
+            sum_squares=float(torch.sum(hist_tensor ** 2)),
             bucket_limits=hist_edges[1:].tolist(),
             bucket_counts=hist_counts.tolist(),
             global_step=self._iter,
@@ -453,33 +407,14 @@ class EventStorage:
         depend on whether the smoothing_hint is True.
 
         This provides a default behavior that other writers can use.
-
-        Note: All scalars saved in the past `window_size` iterations are used for smoothing.
-        This is different from the `window_size` definition in HistoryBuffer.
-        Use :meth:`get_history_window_size` to get the `window_size` used in HistoryBuffer.
         """
         result = {}
         for k, (v, itr) in self._latest_scalars.items():
             result[k] = (
-                self._history[k].median(self.count_samples(k, window_size))
-                if self._smoothing_hints[k]
-                else v,
+                self._history[k].median(window_size) if self._smoothing_hints[k] else v,
                 itr,
             )
         return result
-
-    def count_samples(self, name, window_size=20):
-        """
-        Return the number of samples logged in the past `window_size` iterations.
-        """
-        samples = 0
-        data = self._history[name].values()
-        for _, iter_ in reversed(data):
-            if iter_ > data[-1][1] - window_size:
-                samples += 1
-            else:
-                break
-        return samples
 
     def smoothing_hints(self):
         """

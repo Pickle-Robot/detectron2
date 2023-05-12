@@ -27,8 +27,7 @@ def densepose_inference(densepose_predictor_output: Any, detections: List[Instan
         if densepose_predictor_output is None:
             # don't add `pred_densepose` attribute
             continue
-        n_i = detection_i.__len__()
-
+        n_i = len(detection_i)
         PredictorOutput = type(densepose_predictor_output)
         output_i_dict = {}
         # we assume here that `densepose_predictor_output` is a dataclass object

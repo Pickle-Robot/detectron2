@@ -9,9 +9,8 @@ import torch
 from iopath.common.file_io import LazyPath
 
 from detectron2 import model_zoo
-from detectron2.config import get_cfg, instantiate
+from detectron2.config import instantiate
 from detectron2.data import (
-    DatasetCatalog,
     DatasetFromList,
     MapDataset,
     ToIterableDataset,
@@ -19,10 +18,7 @@ from detectron2.data import (
     build_detection_test_loader,
     build_detection_train_loader,
 )
-from detectron2.data.common import (
-    AspectRatioGroupedDataset,
-    set_default_dataset_from_list_serialize_method,
-)
+from detectron2.data.common import AspectRatioGroupedDataset
 from detectron2.data.samplers import InferenceSampler, TrainingSampler
 
 
@@ -43,19 +39,6 @@ class TestDatasetFromList(unittest.TestCase):
             path = dataset[i]["file_name"]
             self.assertTrue(isinstance(path, LazyPath))
             self.assertEqual(os.fspath(path), _a_slow_func(i))
-
-    def test_alternative_serialize_method(self):
-        dataset = [1, 2, 3]
-        dataset = DatasetFromList(dataset, serialize=torch.tensor)
-        self.assertEqual(dataset[2], torch.tensor(3))
-
-    def test_change_default_serialize_method(self):
-        dataset = [1, 2, 3]
-        with set_default_dataset_from_list_serialize_method(torch.tensor):
-            dataset_1 = DatasetFromList(dataset, serialize=True)
-            self.assertEqual(dataset_1[2], torch.tensor(3))
-        dataset_2 = DatasetFromList(dataset, serialize=True)
-        self.assertEqual(dataset_2[2], 3)
 
 
 class TestMapDataset(unittest.TestCase):
@@ -87,7 +70,7 @@ class TestMapDataset(unittest.TestCase):
     def test_pickleability(self):
         ds = DatasetFromList([1, 2, 3])
         ds = MapDataset(ds, lambda x: x * 2)
-        ds = pickle.loads(pickle.dumps(list(ds)))
+        ds = pickle.loads(pickle.dumps(ds))
         self.assertEqual(ds[0], 2)
 
 
@@ -106,12 +89,6 @@ class TestAspectRatioGrouping(unittest.TestCase):
             # check that bucket sizes are valid
             for bucket in dataset._buckets:
                 self.assertLess(len(bucket), batchsize)
-
-
-class _MyData(torch.utils.data.IterableDataset):
-    def __iter__(self):
-        while True:
-            yield 1
 
 
 class TestDataLoader(unittest.TestCase):
@@ -133,16 +110,6 @@ class TestDataLoader(unittest.TestCase):
         ds = DatasetFromList(kwargs.pop("dataset"))
         ds = ToIterableDataset(ds, TrainingSampler(len(ds)))
         dl = build_detection_train_loader(dataset=ds, **kwargs)
-        next(iter(dl))
-
-    def test_build_iterable_dataloader_from_cfg(self):
-        cfg = get_cfg()
-        cfg.DATASETS.TRAIN = ["iter_data"]
-        DatasetCatalog.register("iter_data", lambda: _MyData())
-        dl = build_detection_train_loader(cfg, mapper=lambda x: x, aspect_ratio_grouping=False)
-        next(iter(dl))
-
-        dl = build_detection_test_loader(cfg, "iter_data", mapper=lambda x: x)
         next(iter(dl))
 
     def _check_is_range(self, data_loader, N):
