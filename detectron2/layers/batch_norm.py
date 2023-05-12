@@ -40,6 +40,7 @@ class FrozenBatchNorm2d(nn.Module):
         self.register_buffer("bias", torch.zeros(num_features))
         self.register_buffer("running_mean", torch.zeros(num_features))
         self.register_buffer("running_var", torch.ones(num_features) - eps)
+        self.register_buffer("num_batches_tracked", None)
 
     def forward(self, x):
         if x.requires_grad:
@@ -65,7 +66,14 @@ class FrozenBatchNorm2d(nn.Module):
             )
 
     def _load_from_state_dict(
-        self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs
+        self,
+        state_dict,
+        prefix,
+        local_metadata,
+        strict,
+        missing_keys,
+        unexpected_keys,
+        error_msgs,
     ):
         version = local_metadata.get("version", None)
 
@@ -78,7 +86,13 @@ class FrozenBatchNorm2d(nn.Module):
                 state_dict[prefix + "running_var"] = torch.ones_like(self.running_var)
 
         super()._load_from_state_dict(
-            state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs
+            state_dict,
+            prefix,
+            local_metadata,
+            strict,
+            missing_keys,
+            unexpected_keys,
+            error_msgs,
         )
 
     def __repr__(self):
@@ -110,6 +124,7 @@ class FrozenBatchNorm2d(nn.Module):
             res.running_mean.data = module.running_mean.data
             res.running_var.data = module.running_var.data
             res.eps = module.eps
+            res.num_batches_tracked = module.num_batches_tracked
         else:
             for name, child in module.named_children():
                 new_child = cls.convert_frozen_batchnorm(child)
@@ -144,6 +159,7 @@ def get_norm(norm, out_channels):
             "naiveSyncBN": NaiveSyncBatchNorm,
             # expose stats_mode N as an option to caller, required for zero-len inputs
             "naiveSyncBN_N": lambda channels: NaiveSyncBatchNorm(channels, stats_mode="N"),
+            "LN": lambda channels: LayerNorm(channels),
         }[norm]
     return norm(out_channels)
 
@@ -206,7 +222,12 @@ class NaiveSyncBatchNorm(BatchNorm2d):
                 vec = vec + input.sum()  # make sure there is gradient w.r.t input
             else:
                 vec = torch.cat(
-                    [mean, meansqr, torch.ones([1], device=mean.device, dtype=mean.dtype)], dim=0
+                    [
+                        mean,
+                        meansqr,
+                        torch.ones([1], device=mean.device, dtype=mean.dtype),
+                    ],
+                    dim=0,
                 )
             vec = differentiable_all_reduce(vec * B)
 
@@ -274,3 +295,26 @@ class CycleBatchNormList(nn.ModuleList):
 
     def extra_repr(self):
         return f"affine={self._affine}"
+
+
+class LayerNorm(nn.Module):
+    """
+    A LayerNorm variant, popularized by Transformers, that performs point-wise mean and
+    variance normalization over the channel dimension for inputs that have shape
+    (batch_size, channels, height, width).
+    https://github.com/facebookresearch/ConvNeXt/blob/d1fa8f6fef0a165b27399986cc2bdacc92777e40/models/convnext.py#L119  # noqa B950
+    """
+
+    def __init__(self, normalized_shape, eps=1e-6):
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(normalized_shape))
+        self.bias = nn.Parameter(torch.zeros(normalized_shape))
+        self.eps = eps
+        self.normalized_shape = (normalized_shape,)
+
+    def forward(self, x):
+        u = x.mean(1, keepdim=True)
+        s = (x - u).pow(2).mean(1, keepdim=True)
+        x = (x - u) / torch.sqrt(s + self.eps)
+        x = self.weight[:, None, None] * x + self.bias[:, None, None]
+        return x
