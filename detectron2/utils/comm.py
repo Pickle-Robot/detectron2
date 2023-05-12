@@ -10,12 +10,10 @@ import torch
 import torch.distributed as dist
 
 _LOCAL_PROCESS_GROUP = None
-_MISSING_LOCAL_PG_ERROR = (
-    "Local process group is not yet created! Please use detectron2's `launch()` "
-    "to start processes and initialize pytorch process group. If you need to start "
-    "processes in other ways, please call comm.create_local_process_group("
-    "num_workers_per_machine) after calling torch.distributed.init_process_group()."
-)
+"""
+A torch process group which only includes processes that on the same machine as the current process.
+This variable is set when processes are spawned by `launch()` in "engine/launch.py".
+"""
 
 
 def get_world_size() -> int:
@@ -34,44 +32,6 @@ def get_rank() -> int:
     return dist.get_rank()
 
 
-@functools.lru_cache()
-def create_local_process_group(num_workers_per_machine: int) -> None:
-    """
-    Create a process group that contains ranks within the same machine.
-
-    Detectron2's launch() in engine/launch.py will call this function. If you start
-    workers without launch(), you'll have to also call this. Otherwise utilities
-    like `get_local_rank()` will not work.
-
-    This function contains a barrier. All processes must call it together.
-
-    Args:
-        num_workers_per_machine: the number of worker processes per machine. Typically
-          the number of GPUs.
-    """
-    global _LOCAL_PROCESS_GROUP
-    assert _LOCAL_PROCESS_GROUP is None
-    assert get_world_size() % num_workers_per_machine == 0
-    num_machines = get_world_size() // num_workers_per_machine
-    machine_rank = get_rank() // num_workers_per_machine
-    for i in range(num_machines):
-        ranks_on_i = list(range(i * num_workers_per_machine, (i + 1) * num_workers_per_machine))
-        pg = dist.new_group(ranks_on_i)
-        if i == machine_rank:
-            _LOCAL_PROCESS_GROUP = pg
-
-
-def get_local_process_group():
-    """
-    Returns:
-        A torch process group which only includes processes that are on the same
-        machine as the current process. This group can be useful for communication
-        within a machine, e.g. a per-machine SyncBN.
-    """
-    assert _LOCAL_PROCESS_GROUP is not None, _MISSING_LOCAL_PG_ERROR
-    return _LOCAL_PROCESS_GROUP
-
-
 def get_local_rank() -> int:
     """
     Returns:
@@ -81,7 +41,9 @@ def get_local_rank() -> int:
         return 0
     if not dist.is_initialized():
         return 0
-    assert _LOCAL_PROCESS_GROUP is not None, _MISSING_LOCAL_PG_ERROR
+    assert (
+        _LOCAL_PROCESS_GROUP is not None
+    ), "Local process group is not created! Please use launch() to spawn processes!"
     return dist.get_rank(group=_LOCAL_PROCESS_GROUP)
 
 
@@ -95,7 +57,6 @@ def get_local_size() -> int:
         return 1
     if not dist.is_initialized():
         return 1
-    assert _LOCAL_PROCESS_GROUP is not None, _MISSING_LOCAL_PG_ERROR
     return dist.get_world_size(group=_LOCAL_PROCESS_GROUP)
 
 
@@ -201,7 +162,7 @@ def shared_random_seed():
 
     All workers must call this function, otherwise it will deadlock.
     """
-    ints = np.random.randint(2**31)
+    ints = np.random.randint(2 ** 31)
     all_ints = all_gather(ints)
     return all_ints[0]
 

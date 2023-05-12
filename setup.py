@@ -1,18 +1,17 @@
 #!/usr/bin/env python
 # Copyright (c) Facebook, Inc. and its affiliates.
 
-from setuptools import find_packages, setup
-import torch
-from torch.utils.cpp_extension import CUDA_HOME, CppExtension, CUDAExtension
-
 import glob
 import os
 import shutil
 from os import path
+from setuptools import find_packages, setup
 from typing import List
+import torch
+from torch.utils.cpp_extension import CUDA_HOME, CppExtension, CUDAExtension
 
 torch_ver = [int(x) for x in torch.__version__.split(".")[:2]]
-assert torch_ver >= [1, 12], "Requires PyTorch >= 1.12"
+assert torch_ver >= [1, 8], "Requires PyTorch >= 1.8"
 
 
 def get_version():
@@ -155,22 +154,19 @@ setup(
     packages=find_packages(exclude=("configs", "tests*")) + list(PROJECTS.keys()),
     package_dir=PROJECTS,
     package_data={"detectron2.model_zoo": get_model_zoo_configs()},
-    python_requires=">=3.9",
+    python_requires=">=3.6",
     install_requires=[
         # These dependencies are not pure-python.
-        # In general, avoid adding dependencies that are not pure-python because they are not
+        # In general, avoid adding more dependencies like them because they are not
         # guaranteed to be installable by `pip install` on all platforms.
+        # To tell if a package is pure-python, go to https://pypi.org/project/{name}/#files
         "Pillow>=7.1",  # or use pillow-simd for better performance
         "matplotlib",  # TODO move it to optional after we add opencv visualization
         "pycocotools>=2.0.2",  # corresponds to https://github.com/ppwwyyxx/cocoapi
         # Do not add opencv here. Just like pytorch, user should install
         # opencv themselves, preferrably by OS's package manager, or by
         # choosing the proper pypi package name at https://github.com/skvark/opencv-python
-        # Also, avoid adding dependencies that transitively depend on pytorch or opencv.
-        # ------------------------------------------------------------
-        # The following are pure-python dependencies that should be easily installable.
-        # But still be careful when adding more: fewer people are able to use the software
-        # with every new dependency added.
+        # The following are pure-python dependencies that should be easily installable
         "termcolor>=1.1",
         "yacs>=0.1.8",
         "tabulate",
@@ -182,21 +178,19 @@ setup(
         # on compatible version of iopath.
         "fvcore>=0.1.5,<0.1.6",  # required like this to make it pip installable
         "iopath>=0.1.7,<0.1.10",
+        "future",  # used by caffe2
+        "pydot",  # used to save caffe2 SVGs
         "dataclasses; python_version<'3.7'",
         "omegaconf>=2.1",
         "hydra-core>=1.1",
-        "black",
-        "packaging",
-        # NOTE: When adding new dependencies, if it is required at import time (in addition
-        # to runtime), it probably needs to appear in docs/requirements.txt, or as a mock
-        # in docs/conf.py
+        "black>=21.4b2",
+        "scipy>1.5.1",
+        # If a new dependency is required at import time (in addition to runtime), it
+        # probably needs to exist in docs/requirements.txt, or as a mock in docs/conf.py
     ],
     extras_require={
         # optional dependencies, required by some features
         "all": [
-            "fairscale",
-            "timm",  # Used by a few ViT models.
-            "scipy>1.5.1",
             "shapely",
             "pygments>=2.2",
             "psutil",
@@ -204,6 +198,10 @@ setup(
         ],
         # dev dependencies. Install them by `pip install 'detectron2[dev]'`
         "dev": [
+            "flake8==3.8.1",
+            "isort==4.3.21",
+            "flake8-bugbear",
+            "flake8-comprehensions",
         ],
     },
     ext_modules=get_extensions(),

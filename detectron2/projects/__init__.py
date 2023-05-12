@@ -1,9 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
-import importlib.abc
-import importlib.util
+import importlib
 from pathlib import Path
-
-__all__ = []
 
 _PROJECTS = {
     "point_rend": "PointRend",

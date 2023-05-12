@@ -109,9 +109,7 @@ class _DatasetCategory:
 _MergedCategoriesT = Dict[int, List[_DatasetCategory]]
 
 
-def _add_category_id_to_contiguous_id_maps_to_metadata(
-    merged_categories: _MergedCategoriesT,
-) -> None:
+def _add_category_id_to_contiguous_id_maps_to_metadata(merged_categories: _MergedCategoriesT) -> None:
     merged_categories_per_dataset = {}
     for contiguous_cat_id, cat_id in enumerate(sorted(merged_categories.keys())):
         for cat in merged_categories[cat_id]:
@@ -709,7 +707,7 @@ def build_video_list_dataset(meta: Metadata, cfg: CfgNode):
         frame_selector = build_frame_selector(cfg.SELECT)
         transform = build_transform(cfg.TRANSFORM, data_type="image")
         video_list = video_list_from_file(video_list_fpath, video_base_path)
-        keyframe_helper_fpath = getattr(cfg, "KEYFRAME_HELPER", None)
+        keyframe_helper_fpath = cfg.KEYFRAME_HELPER if hasattr(cfg, "KEYFRAME_HELPER") else None
         return VideoKeyframeDataset(
             video_list, category, frame_selector, transform, keyframe_helper_fpath
         )
