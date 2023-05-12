@@ -7,7 +7,6 @@ from torch import nn
 
 from detectron2.config import configurable
 from detectron2.data.detection_utils import convert_image_to_rgb
-from detectron2.layers import move_device_like
 from detectron2.structures import ImageList, Instances
 from detectron2.utils.events import get_event_storage
 from detectron2.utils.logger import log_first_n
@@ -84,9 +83,6 @@ class GeneralizedRCNN(nn.Module):
     @property
     def device(self):
         return self.pixel_mean.device
-
-    def _move_to_current_device(self, x):
-        return move_device_like(x, self.pixel_mean)
 
     def visualize_training(self, batched_inputs, proposals):
         """
@@ -218,19 +214,16 @@ class GeneralizedRCNN(nn.Module):
         if do_postprocess:
             assert not torch.jit.is_scripting(), "Scripting is not supported for postprocess."
             return GeneralizedRCNN._postprocess(results, batched_inputs, images.image_sizes)
-        return results
+        else:
+            return results
 
     def preprocess_image(self, batched_inputs: List[Dict[str, torch.Tensor]]):
         """
         Normalize, pad and batch the input images.
         """
-        images = [self._move_to_current_device(x["image"]) for x in batched_inputs]
+        images = [x["image"].to(self.device) for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(
-            images,
-            self.backbone.size_divisibility,
-            padding_constraints=self.backbone.padding_constraints,
-        )
+        images = ImageList.from_tensors(images, self.backbone.size_divisibility)
         return images
 
     @staticmethod
@@ -292,9 +285,6 @@ class ProposalNetwork(nn.Module):
     def device(self):
         return self.pixel_mean.device
 
-    def _move_to_current_device(self, x):
-        return move_device_like(x, self.pixel_mean)
-
     def forward(self, batched_inputs):
         """
         Args:
@@ -306,13 +296,9 @@ class ProposalNetwork(nn.Module):
                 The dict contains one key "proposals" whose value is a
                 :class:`Instances` with keys "proposal_boxes" and "objectness_logits".
         """
-        images = [self._move_to_current_device(x["image"]) for x in batched_inputs]
+        images = [x["image"].to(self.device) for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(
-            images,
-            self.backbone.size_divisibility,
-            padding_constraints=self.backbone.padding_constraints,
-        )
+        images = ImageList.from_tensors(images, self.backbone.size_divisibility)
         features = self.backbone(images.tensor)
 
         if "instances" in batched_inputs[0]:
