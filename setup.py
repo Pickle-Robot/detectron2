@@ -11,7 +11,7 @@ import torch
 from torch.utils.cpp_extension import CUDA_HOME, CppExtension, CUDAExtension
 
 torch_ver = [int(x) for x in torch.__version__.split(".")[:2]]
-assert torch_ver >= [2, 1], "Requires PyTorch >= 2.1"
+assert torch_ver >= [2, 5], "Requires PyTorch >= 2.5"
 
 
 def get_version():
