@@ -12,15 +12,15 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 }
 
 ISORT_VERSION=$(isort --version-number)
-if [[ "$ISORT_VERSION" != 4.3* ]]; then
-  echo "Linter requires isort==4.3.21 !"
+if [[ "$ISORT_VERSION" != 5.12* ]]; then
+  echo "Linter requires isort==5.12.0 !"
   exit 1
 fi
 
 set -v
 
 echo "Running isort ..."
-isort -y -sp . --atomic
+isort --apply -y -sp . --atomic
 
 echo "Running black ..."
 black -l 100 .

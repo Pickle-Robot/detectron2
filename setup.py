@@ -11,7 +11,7 @@ import torch
 from torch.utils.cpp_extension import CUDA_HOME, CppExtension, CUDAExtension
 
 torch_ver = [int(x) for x in torch.__version__.split(".")[:2]]
-assert torch_ver >= [1, 8], "Requires PyTorch >= 1.8"
+assert torch_ver >= [2, 1], "Requires PyTorch >= 2.1"
 
 
 def get_version():
@@ -160,7 +160,7 @@ setup(
     packages=find_packages(exclude=("configs", "tests*")) + list(PROJECTS.keys()),
     package_dir=PROJECTS,
     package_data={"detectron2.model_zoo": get_model_zoo_configs()},
-    python_requires=">=3.7",
+    python_requires=">=3.10",
     install_requires=[
         # These dependencies are not pure-python.
         # In general, avoid adding dependencies that are not pure-python because they are not
@@ -209,8 +209,8 @@ setup(
         ],
         # dev dependencies. Install them by `pip install 'detectron2[dev]'`
         "dev": [
-            "flake8==3.8.1",
-            "isort==4.3.21",
+            "flake8==6.0.0",
+            "isort==5.12.0",
             "flake8-bugbear",
             "flake8-comprehensions",
             "black~=24.0",
