@@ -19,9 +19,10 @@ setup_wheel_python
 yum install ninja-build -y
 ln -sv /usr/bin/ninja-build /usr/bin/ninja || true
 
-pip_install pip numpy -U
-pip_install "torch==$PYTORCH_VERSION" \
-  -f https://download.pytorch.org/whl/"$CU_VERSION"/torch_stable.html
+pip_install 'pip numpy<2' -U
+pip_install "torch==$PYTORCH_VERSION" --index-url https://download.pytorch.org/whl/cu118
+
+
 
 # use separate directories to allow parallel build
 BASE_BUILD_DIR=build/$CU_VERSION-py$PYTHON_VERSION-pt$PYTORCH_VERSION

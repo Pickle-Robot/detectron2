@@ -49,5 +49,5 @@ EOF
 if [[ -n "$1" ]] && [[ -n "$2" ]]; then
   build_one "$1" "$2"
 else
-  build_one cu118 2.1
+  build_one cu118 2.5.1
 fi
